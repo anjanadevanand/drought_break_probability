@@ -1,3 +1,3 @@
-# drought_breaking_probability
+# drought_probability
 
-Jupyter notebooks with python code used to analyse drought breaking events on Gadi
+Jupyter notebooks with python code used to analyse probability of drought breaking events on Gadi
