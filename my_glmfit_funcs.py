@@ -2,6 +2,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 from statsmodels.formula.api import glm
+import statsmodels.formula.api as smf
 import statsmodels.api as sm
 import itertools
 # model = glm(formula, data, family)
@@ -33,6 +34,19 @@ def fit_logistReg_3Pred(y, x1, x2, x3, predictors, thres, formula, x1_new, x2_ne
             GLM_params[:, ith] = model_GLM.params.values
             GLM_pvalues[:, ith] = model_GLM.pvalues.values
     return GLM_params, GLM_pvalues, GLM_probability
+
+
+# define a function to fit a one predictor linear regression model
+def fit_lm_1Pred(y, x, dryInd, predictand, predictor):
+    xy_dict = {predictand:y[dryInd], predictor:x[dryInd]}
+    xy_df = pd.DataFrame(x_dict)
+    formula = predictand + ' ~ ' + predictor
+    lm = smf.ols(formula, xy_df)
+    model_lm = lm.fit()
+    lm_params = model_lm.params.values
+    lm_pvalues = model_lm.pvalues.values
+    lm_rsq_adj = model_lm.rsquared_adj
+    return lm_params, lm_pvalues, lm_rsq_adj
 
 # function to create a new data frame that will be used to 'predict' probabilities from the fitted model
 # the new data points would cover combinations of unique values for categorical predictors and mean/perturbations one sd above the mean for quantitative predictors
