@@ -17,6 +17,37 @@ def fit_logistReg_3Pred(y, x1, x2, x3, predictors, thres, formula, x1_new, x2_ne
     GLM_params = np.empty((n_predictors, len(thres))) # array([])
     GLM_pvalues = np.empty((n_predictors, len(thres)))
     GLM_probability = np.empty((len(x_new), len(thres)))
+    GLM_aic = np.empty(len(thres))
+    for ith in np.arange(len(thres)):
+        # create a dataframe of reponse and predictors
+        y_binary = np.where(y >= thres[ith], 1, 0)
+        x['response'] = y_binary
+
+        if (sum(y_binary) < 4):                      # too few data points for estimation
+            GLM_probability[:,ith] = 0
+            GLM_params[:,ith] = np.nan
+            GLM_pvalues[:,ith] = np.nan
+            GLM_aic[ith] = np.nan
+        else:                                        # logistic regression fit
+            model = glm(formula, x, family=sm.families.Binomial())
+            model_GLM = model.fit()
+            GLM_probability[:, ith] = model_GLM.predict(x_new)
+            GLM_params[:, ith] = model_GLM.params.values
+            GLM_pvalues[:, ith] = model_GLM.pvalues.values
+            GLM_aic[ith] = model_GLM.aic
+    return GLM_params, GLM_pvalues, GLM_probability, GLM_aic
+
+# define a function to fit the GLM model
+def fit_logistReg_2Pred(y, x1, x2, predictors, thres, formula, x1_new, x2_new, n_predictors = 3):
+    x_dict = {predictors[0]:x1, predictors[1]:x2}
+    x = pd.DataFrame(x_dict)
+    x_new_dict = {predictors[0]:x1_new, predictors[1]:x2_new}
+    x_new = pd.DataFrame(x_new_dict)
+    
+    GLM_params = np.empty((n_predictors, len(thres))) # array([])
+    GLM_pvalues = np.empty((n_predictors, len(thres)))
+    GLM_probability = np.empty((len(x_new), len(thres)))
+    GLM_aic = np.empty(len(thres))
     
     for ith in np.arange(len(thres)):
         # create a dataframe of reponse and predictors
@@ -26,14 +57,16 @@ def fit_logistReg_3Pred(y, x1, x2, x3, predictors, thres, formula, x1_new, x2_ne
         if (sum(y_binary) < 4):                      # too few data points for estimation
             GLM_probability[:,ith] = 0
             GLM_params[:,ith] = np.nan
-            GLM_pvalues[:,ith] = np.nan   
+            GLM_pvalues[:,ith] = np.nan
+            GLM_aic[ith] = np.nan
         else:                                        # logistic regression fit
             model = glm(formula, x, family=sm.families.Binomial())
             model_GLM = model.fit()
             GLM_probability[:, ith] = model_GLM.predict(x_new)
             GLM_params[:, ith] = model_GLM.params.values
             GLM_pvalues[:, ith] = model_GLM.pvalues.values
-    return GLM_params, GLM_pvalues, GLM_probability
+            GLM_aic[ith] = model_GLM.aic
+    return GLM_params, GLM_pvalues, GLM_probability, GLM_aic
 
 
 # define a function to fit a one predictor linear regression model
