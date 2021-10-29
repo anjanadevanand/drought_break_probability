@@ -10,6 +10,7 @@ from dask.distributed import Client, LocalCluster
 from dask.distributed import Client,Scheduler
 from dask_jobqueue import SLURMCluster
 import time
+from statsmodels.tools.sm_exceptions import PerfectSeparationError
 # model = glm(formula, data, family)
 
 # define a function to fit the GLM model
@@ -59,20 +60,71 @@ def fit_logistReg_2Pred(y, x1, x2, predictors, thres, formula, x1_new, x2_new, n
         y_binary = np.where(y >= thres[ith], 1, 0)
         x['response'] = y_binary
 
-        if (sum(y_binary) < 6):                      # too few data points for estimation
+        if (sum(y_binary) < 4):                      # too few data points for estimation
             GLM_probability[:,ith] = 0
-            GLM_params[:,ith] = np.nan
+            GLM_params[:,ith] = 0
             GLM_pvalues[:,ith] = np.nan
             GLM_aic[ith] = np.nan
         else:                                        # logistic regression fit
             model = glm(formula, x, family=sm.families.Binomial())
-            model_GLM = model.fit()
-            GLM_probability[:, ith] = model_GLM.predict(x_new)
-            GLM_params[:, ith] = model_GLM.params.values
-            GLM_pvalues[:, ith] = model_GLM.pvalues.values
-            GLM_aic[ith] = model_GLM.aic
+            try:
+                model_GLM = model.fit()
+                GLM_probability[:, ith] = model_GLM.predict(x_new)
+                GLM_params[:, ith] = model_GLM.params.values
+                GLM_pvalues[:, ith] = model_GLM.pvalues.values
+                GLM_aic[ith] = model_GLM.aic
+            except PerfectSeparationError: 
+                GLM_probability[:,ith] = np.nan
+                GLM_params[:,ith] = np.nan
+                GLM_pvalues[:,ith] = np.nan
+                GLM_aic[ith] = np.nan
+
     return GLM_params, GLM_pvalues, GLM_probability, GLM_aic
 
+# define a function to fit the GLM model
+def fit_logistReg_2Pred_oneThres(y, x1, x2, predictors, thres, formula, x1_new, x2_new, n_predictors = 3):
+    '''Function to fit a logistic regression model to estimate exceedence probability
+    using a thres argument. If the thres argument is nan, the grid is not in drought.
+    '''
+    GLM_params = np.empty(n_predictors)
+    GLM_pvalues = np.empty(n_predictors)
+    GLM_probability = np.empty(1)
+    GLM_aic = np.empty(1)
+    
+    if np.isnan(thres):
+        GLM_probability[:] = np.nan
+        GLM_params[:] = np.nan
+        GLM_pvalues[:] = np.nan
+        GLM_aic[:] = np.nan
+    else:
+        y_binary = np.where(y >= thres, 1, 0)      
+        if (sum(y_binary) < 4):                      # too few data points for estimation
+            GLM_probability[:] = 0
+            GLM_params[:] = 0
+            GLM_pvalues[:] = np.nan
+            GLM_aic[:] = np.nan
+        else:                                        # logistic regression fit
+            # create a dataframe of reponse and predictors
+            x_dict = {predictors[0]:x1, predictors[1]:x2}
+            x = pd.DataFrame(x_dict)
+            x['response'] = y_binary
+            
+            x_new_dict = {predictors[0]:x1_new, predictors[1]:x2_new}
+            x_new = pd.DataFrame(x_new_dict, index = [0])
+            
+            model = glm(formula, x, family=sm.families.Binomial())
+            try:
+                model_GLM = model.fit()
+                GLM_probability[:] = model_GLM.predict(x_new)
+                GLM_params[:] = model_GLM.params.values
+                GLM_pvalues[:] = model_GLM.pvalues.values
+                GLM_aic[:] = model_GLM.aic
+            except PerfectSeparationError:          # this error occurs at longer timescales with fewer data points
+                GLM_probability[:] = np.nan
+                GLM_params[:] = np.nan
+                GLM_pvalues[:] = np.nan
+                GLM_aic[:] = np.nan
+    return GLM_params, GLM_pvalues, GLM_probability, GLM_aic
 
 # define a function to fit a one predictor linear regression model
 def fit_lm_1Pred(y, x, dryInd, predictand, predictor):
@@ -121,30 +173,30 @@ def get_sst_predictors(sst_dir = '/g/data/w97/ad9701/p_prob_analysis/sst_data/',
         del ds_temp
     return ds_p
 
-def fit_gridded_logistReg(main_dir, varname, iWeek, threshold, sub_dir = '',
+def fit_gridded_logistReg(main_dir, varname, iWeek, threshold, ds_p, x_new, sub_dir = '',
                      predSel = ['soi', 'dmi'], 
-                     formula = 'response ~ +soi+dmi', 
-                     extra_param = ['Intercept'], 
+                     formula = 'response ~ soi+dmi', 
+                     parameter = ['Intercept', 'soi', 'dmi'], 
                      time_slice = slice('1911-01-01','2020-05-31')):
     
     fname = varname + '_*_*_*.nc'
 
-    # select the predictors to include in the model
-    extra_param.extend(predSel)
-    parameter = extra_param
+    # # select the predictors to include in the model
+    # extra_param.extend(predSel)
+    # parameter = extra_param
 
-    # create a new df of sample points at which 'predictions' will be made using the fitted model
-    ds_p = get_sst_predictors()
-    print('Full set of sst predictors: ' + str(list(ds_p.keys())))
-    ds_p_subset = ds_p.sel(time = time_slice)
-    pred_dict = {}
-    for p in list(ds_p.keys()): #pNames:
-        pred_dict.update({p: ds_p_subset[p].values})
-    pred_dict.update({"season": ds_p_subset['time.season'].values})    # add season to the sst predictors    
-    pred_df = pd.DataFrame(pred_dict, index = ds_p_subset['time'])     # make a dataframe of predictors
-    print('Selected sst predictors: ' + str(predSel))
-    pred_df_sel = pred_df[predSel]
-    x_new = createSampleDf(pred_df_sel, list(pred_df_sel.keys()))
+    # # create a new df of sample points at which 'predictions' will be made using the fitted model
+    # ds_p = get_sst_predictors()
+    # print('Full set of sst predictors: ' + str(list(ds_p.keys())))
+    # ds_p_subset = ds_p.sel(time = time_slice)
+    # pred_dict = {}
+    # for p in list(ds_p.keys()): #pNames:
+    #     pred_dict.update({p: ds_p_subset[p].values})
+    # pred_dict.update({"season": ds_p_subset['time.season'].values})    # add season to the sst predictors    
+    # pred_df = pd.DataFrame(pred_dict, index = ds_p_subset['time'])     # make a dataframe of predictors
+    # print('Selected sst predictors: ' + str(predSel))
+    # pred_df_sel = pred_df[predSel]
+    # x_new = createSampleDf(pred_df_sel, list(pred_df_sel.keys()))
 
     # get data
     data_dir = main_dir + varname + '_week' + str(iWeek) + '/' + sub_dir + '/'
