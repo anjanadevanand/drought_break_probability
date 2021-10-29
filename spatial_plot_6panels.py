@@ -18,7 +18,10 @@ yticks = np.arange(-38,-32,2)   #lat
 #Loop over all of the models
 for i in np.arange(6):
     data = data_list[i]
-    data_hatch = data_hatch_list[i]
+    if data_hatch_list is not None:
+        data_hatch = data_hatch_list[i]
+    else:
+        data_hatch = None
     axs[i].set_title(title_list[i])
         
 #     # Add the cyclic point
@@ -28,7 +31,8 @@ for i in np.arange(6):
     cs=axs[i].contourf(ds['lon'],ds['lat'],data,clevs,
                           transform = ccrs.PlateCarree(),
                           cmap=cmapSel,extend='both')   #cmap options: coolwarm,
-    axs[i].contourf(ds['lon'],ds['lat'],data_hatch,1, hatches=[".", "."],zorder=4, colors='none')   #cmap options: coolwarm,
+    if data_hatch is not None:
+        axs[i].contourf(ds['lon'],ds['lat'],data_hatch,1, hatches=[".", "."],zorder=4, colors='none')   #cmap options: coolwarm,
 
     # Draw the coastines for each subplot
     axs[i].coastlines()
