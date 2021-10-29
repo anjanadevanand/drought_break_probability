@@ -87,11 +87,12 @@ def calc_agcd_accum(nWeek, allWeek_dict, out_dir, sub_dir = '',
 
 
 # Using xr.save_mfdataset
-def calc_awra_accum(nWeek, allWeek_dict, file_names, var_name, out_dir, sub_dir = '',
+def calc_awra_accum(nWeek, allWeek_dict, var_name, out_dir, sub_dir = '',
             awra_dir = '/g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/', lat_slice = None, lon_slice = None, reg_prefix = 'AU'):
     '''
     Function to create nWeekly accumulations of awra evaporation & runoff data. sub_dir should start with a '/' if specified.
     '''
+    file_names = var_name + '_*.nc' 
     ds = xr.open_mfdataset(awra_dir + file_names, chunks = {'lat':400,'lon':400})
     
     time_slice = slice(allWeek_dict['start_day'][nWeek], allWeek_dict['end_day'][nWeek])
@@ -112,7 +113,7 @@ def calc_awra_accum(nWeek, allWeek_dict, file_names, var_name, out_dir, sub_dir 
         os.makedirs(full_dir_path)
         
     ds_var_accum = da_var_accum.to_dataset()
-    datasets = list(split_by_chunks(ds_P_accum))
+    datasets = list(split_by_chunks(ds_var_accum))
     paths = [create_filepath(ds, prefix = prefix, root_path = full_dir_path) for ds in datasets]
 
     print(full_dir_path)
@@ -127,6 +128,52 @@ def calc_awra_accum(nWeek, allWeek_dict, file_names, var_name, out_dir, sub_dir 
 #             out_file = out_dir + 'Q_week' + str(nWeek) + sub_dir + '/Q_week' + str(nWeek) + '_SEA_' + str(year) + '.nc'
 #         climtas.io.to_netcdf_throttled(data, f'{out_file}')
 #     return None
+
+# Using xr.save_mfdataset
+def calc_PminusEQ(nWeek, out_dir, sub_dir = '', reg_prefix = 'AU', p_var = 'precip', e_var = 'etot', q_var = 'qtot', latlon_mismatch = True):
+    '''
+    Function to calculate P-E-Q. sub_dir should start with a '/' if specified.
+    '''
+    P_data_path = out_dir + '/P_week' + str(nWeek) + '/' + sub_dir + '/'
+    P_fname = 'P_*_*_*.nc'
+    E_data_path = out_dir + '/E_week' + str(nWeek) + '/' + sub_dir + '/'
+    E_fname = 'E_*_*_*.nc'
+    Q_data_path = out_dir + '/Q_week' + str(nWeek) + '/' + sub_dir + '/'
+    Q_fname = 'Q_*_*_*.nc'
+    
+    out_path = out_dir + '/PminusEQ_week' + str(nWeek) + '/' + sub_dir + '/'
+    
+    ds_P = xr.open_mfdataset(P_data_path + P_fname)
+    # The time co-ordinates in the precip and ET files are offset by 9 hours. Reassigning the time co-ordinates in the P file to calculate P-E.
+    time_new = ds_P['time'].dt.floor('D')
+    ds_P = ds_P.assign_coords(time=time_new)
+    ds_E = xr.open_mfdataset(E_data_path + E_fname) #, chunks = {'lat':400,'lon':400})
+    ds_Q = xr.open_mfdataset(Q_data_path + Q_fname)
+    
+    # converting the datatypes of E to match P
+    if latlon_mismatch is True:
+        lat_new = np.float32(ds_E['lat'])
+        lon_new = np.float32(ds_E['lon'])
+        ds_E = ds_E.assign_coords(lat=lat_new)
+        ds_E = ds_E.assign_coords(lon=lon_new)
+        lat_new = np.float32(ds_Q['lat'])
+        lon_new = np.float32(ds_Q['lon'])
+        ds_Q = ds_Q.assign_coords(lat=lat_new)
+        ds_Q = ds_Q.assign_coords(lon=lon_new)
+    
+    da_PminusEQ = (ds_P[p_var] - ds_E[e_var] - ds_Q[q_var]).rename('PminusEQ')
+                                                        
+    full_dir_path = out_dir + 'PminusEQ_week' + str(nWeek) + '/' + sub_dir
+    if not os.path.exists(full_dir_path):
+        os.makedirs(full_dir_path)
+    prefix = 'PminusEQ_week' + str(nWeek) + '_' + reg_prefix    
+    ds_PmEQ = da_PminusEQ.to_dataset()
+    datasets = list(split_by_chunks(ds_PmEQ))
+    paths = [create_filepath(ds, prefix = prefix, root_path = full_dir_path) for ds in datasets]
+
+    print(full_dir_path)
+    xr.save_mfdataset(datasets=datasets, paths=paths)
+    return None
                                    
 def process_awra_sm(nWeek, out_dir, sub_dir = '',
             awra_dir = '/g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/processed/values/day/', file_names = 'sm_[1-2]*.nc', lat_slice = None, lon_slice = None):
