@@ -7,7 +7,7 @@ fig, axs = plt.subplots(nrows=nrows,ncols=ncols,
                         figsize=(20,11.5)) #width, height
 
 # axs is a 2 dimensional array of `GeoAxes`.  We will flatten it into a 1-D array
-axs=axs.flatten()
+axs=axs.flatten('F')
 
 xticks = np.arange(140,152,2)  #lon
 yticks = np.arange(-38,-32,2)   #lat
@@ -15,7 +15,7 @@ yticks = np.arange(-38,-32,2)   #lat
 xlim = [ds['lon'].values.min(), ds['lon'].values.max()]
 ylim = [ds['lat'].values.min(), ds['lat'].values.max()]
 
-ax_plot = [0, 1, 2, 3, 4, 5, 6, 8, 9, 10]
+ax_plot = range(12) #[0, 1, 2, 3, 4, 5, 6, 8, 9, 10]
 
 #Loop over all of the models
 count = 0
@@ -47,8 +47,8 @@ for i in ax_plot:
     count = count+1
 
 #Delete the unwanted axes
-for i in [7, 11]:
-    fig.delaxes(axs[i])
+# for i in [7, 11]:
+#     fig.delaxes(axs[i])
 
 # Adjust the location of the subplots on the page to make room for the colorbar
 fig.subplots_adjust(bottom=0.2, top=0.95, left=0.05, right=0.95,
