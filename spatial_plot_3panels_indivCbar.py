@@ -29,7 +29,7 @@ for i in np.arange(3):
         clevs = clevs_list[i]
     cs=axs[i].contourf(ds['lon'],ds['lat'],data,clevs,
                           transform = ccrs.PlateCarree(),
-                          cmap=cmapSel,extend='both')   #cmap options: coolwarm,
+                          cmap=cmapSel[i],extend='both')   #cmap options: coolwarm,
     # Add colorbar
     cbar = plt.colorbar(cs, ax=axs[i], orientation='horizontal')
     if data_hatch is not None:

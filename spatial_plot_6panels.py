@@ -4,7 +4,7 @@ ncols=3 #2
 # Define the figure and each axis for the row and 
 fig, axs = plt.subplots(nrows=nrows,ncols=ncols,
                         subplot_kw={'projection': ccrs.PlateCarree()},
-                        figsize=(16.5,8)) #width, height
+                        figsize=(20,9)) #width, height
 
 # axs is a 2 dimensional array of `GeoAxes`.  We will flatten it into a 1-D array
 axs=axs.flatten()
