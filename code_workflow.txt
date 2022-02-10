@@ -1,0 +1,50 @@
+# *************
+Main Workflow:
+# *************
+
+1. identify_gridlevel_drought_events.ipynb
+    
+Use the soil moisture data and the climatological percentiles calculated from the same (saved in directory 'sm_refPeriod_perc') to identify times of drought at all grid points of interest. The script generates files named 'events_XX_YYperc_*.nc' for each decade that contain binary information, with '1' indicating that the grid is in drought.
+
+2. drought_events_calc_smDeficit_and_PmEQ.ipynb
+
+Use the cell updated on Dec 3, 2021 in the notebook (which calculates SM deficits based on the future day corresponding to the x-week timescale of interest and uses a regression that contains an intercept term to estimate the required P-E-Q). Calculate SM deficits and required P-E-Q corresponding to each day in drought that is identified in the previous step. These values are the threshold values of moisture accumulations that can end the ongoing drought. The SM deficits and P-E-Q thresholds may also be negative in certain conditions, especially in SON where the term 'moisture accumulation' represents a thershold on the loss of existing soil moisture as the temperature warms.
+
+The script generates 'sm_events_XX_YYperc*.nc' and 'PmEQ_events_XX_YYperc*.nc' in the designated subdirectory of the folder 'sm_droughts'. 
+
+3. <Optional> plot_changes_sm_deficit_PmEQ.ipynb
+
+Plot number of drought events, mean SM deficit and P-E-Q values by season.
+
+4. drought_breaks_validation_byProbBand.ipynb
+
+Use the first few cells to calculate the total number of historical drought events and the number of events that ended after the 'x-week' timescale. This data will be used for validation of the GLM predicted probabilities. (this step can be done in parallel to steps 5 & 6).
+
+5. create GLM results directories to store the outputs.
+
+6. run the selected GLM models with P-E-Q thresholds calculated in step 2. (submit as jobs on Gadi)
+
+Files to edit: 'job_script_template_allyr.pbs' to run the fit_model*.py script of the selected model. 
+               'submit_jobs_allweek_allyr.sh' to set the drought files (P-E-Q thresholds required for drought ending) and glm directory to store outputs
+
+7. concatenate results, calculate validation data by probability band, and plot the results. (submit as jobs on Gadi)
+
+Files to edit: 'submit_jobs_concat.sh' specify the glm directory
+                'submit_jobs_validate_plot_noDep.sh' to set the correct directories to use for validation datasets and the glm directory
+
+Other pre-processing steps and the code required for the workflow:
+
+1. calculate the soil moisture percentiles. (soil_moisture_perc_calc.ipynb)
+2. calculate the delSM ~ P-E-Q regression. This will be used to calculate equivalent P-E-Q thersholds corresponding to the SM deficits for the GLM model. (SM_PminusEQ_regrFit_gridded.ipynb)
+plot_SM_PminusEQ_regFit.ipynb can be used to plot the calculated coefficient values.
+3. calculate & save rolling accumulations of P-E-Q for each time scale. This data along with the calculated P-E-Q thershold will be used to estimates the number of total and excceeded P-E-Q thresholds for validation. (drought_break_validation_PmEQ_dailyRoll.ipynb)
+
+
+
+# *****
+TO DO
+# *****
+
+look at py_notebooks/make_plots_spatial.ipynb to look at spatial plots of Mean P-E-Q, all combined and by season.
+Also spatial plots of statistics of P-E-Q (10th percentile, 90th percentile)
+This would be helpful before showing plots of threshold P-E-Q used for the GLM model (or in extra slides)
