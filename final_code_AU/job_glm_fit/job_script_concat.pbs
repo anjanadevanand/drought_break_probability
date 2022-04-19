@@ -1,0 +1,33 @@
+#!/bin/bash
+
+#PBS -P n81
+#PBS -q normalbw
+#PBS -l walltime=06:00:00
+#PBS -l mem=16GB
+#PBS -l ncpus=1
+#PBS -l storage=gdata/w97+gdata/hh5+gdata/fj8+gdata/zv2
+#PBS -m a
+#PBS -M anjana.devanand@unsw.edu.au
+#PBS -N mdl4_glm_8_-37.025_153.025
+#PBS -l wd
+
+#####PBS -j oe
+#####PBS -l wd
+
+# walltime for all land grids = 45:00:00
+# also removed jobfs PBS -l jobfs=50gb
+
+module use /g/data/hh5/public/modules
+module load conda/analysis3
+
+export iWeek=8
+export start_yr=1911
+export glm_dir=/g/data/w97/ad9701/p_prob_analysis/model_output/awra/GLM_results_model4/
+export end_yr=2020
+export start_lat=-37.025
+export end_lat=-39.025
+export start_lon=153.025
+export end_lon=155.025
+
+python ./check_and_concat_glm_files.py
+

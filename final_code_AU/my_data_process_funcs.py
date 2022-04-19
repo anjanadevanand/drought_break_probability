@@ -130,7 +130,7 @@ def calc_awra_accum(nWeek, allWeek_dict, var_name, out_dir, sub_dir = '',
 #     return None
 
 # Using xr.save_mfdataset
-def calc_PminusEQ(nWeek, out_dir, sub_dir = '', reg_prefix = 'AU', p_var = 'precip', e_var = 'etot', q_var = 'qtot', latlon_mismatch = True):
+def calc_PminusEQ(nWeek, out_dir, sub_dir = '', reg_prefix = 'AU', p_var = 'precip', e_var = 'etot', q_var = 'qtot', latlon_mismatch = True, P_time_mismatch = True):
     '''
     Function to calculate P-E-Q. sub_dir should start with a '/' if specified.
     '''
@@ -145,8 +145,9 @@ def calc_PminusEQ(nWeek, out_dir, sub_dir = '', reg_prefix = 'AU', p_var = 'prec
     
     ds_P = xr.open_mfdataset(P_data_path + P_fname)
     # The time co-ordinates in the precip and ET files are offset by 9 hours. Reassigning the time co-ordinates in the P file to calculate P-E.
-    time_new = ds_P['time'].dt.floor('D')
-    ds_P = ds_P.assign_coords(time=time_new)
+    if P_time_mismatch:  
+        time_new = ds_P['time'].dt.floor('D')
+        ds_P = ds_P.assign_coords(time=time_new)
     ds_E = xr.open_mfdataset(E_data_path + E_fname) #, chunks = {'lat':400,'lon':400})
     ds_Q = xr.open_mfdataset(Q_data_path + Q_fname)
     
@@ -220,10 +221,11 @@ def process_awra_sm(nWeek, out_dir, sub_dir = '',
     paths_init = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_init]
     xr.save_mfdataset(datasets=datasets_init, paths=paths_init)
     
-    datasets_init = list(split_by_chunks(ds_init))
-    prefix = 'sm_init_week' + str(nWeek) + '_' + reg_prefix
-    paths_init = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_init]
-    xr.save_mfdataset(datasets=datasets_init, paths=paths_init)
+    # *** this is probably an error, should be saving ds_diff here - to be corrected before using the function
+    # datasets_init = list(split_by_chunks(ds_init))
+    # prefix = 'sm_init_week' + str(nWeek) + '_' + reg_prefix
+    # paths_init = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_init]
+    # xr.save_mfdataset(datasets=datasets_init, paths=paths_init)
 
 
 #     for year, data in ds_init.groupby('time.year'):
@@ -240,6 +242,194 @@ def process_awra_sm(nWeek, out_dir, sub_dir = '',
 #         print('Writing diff file:' + str(year))
 #         out_file = out_dir + 'sm_week' + str(nWeek) + sub_dir + '/sm_diff_week' + str(nWeek) + '_AU_' + str(year) + '.nc'
 #         climtas.io.to_netcdf_throttled(data, f'{out_file}')
+    return None
+
+def process_awra_sm(nWeek, out_dir, sub_dir = '',
+            awra_dir = '/g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/processed/values/day/', file_names = 'sm_[1-2]*.nc', lat_slice = None, lon_slice = None):
+    '''
+    Function to process weekly awra sm data. sub_dir should start with a '/' if specified.
+    '''
+    ds_temp = xr.open_mfdataset(awra_dir + file_names, chunks = {'lat':400,'lon':400})
+    
+    # converting the datatypes of SM to match P
+    lat_new = np.float32(ds_temp['latitude'])
+    lon_new = np.float32(ds_temp['longitude'])
+    if lat_slice is None:
+        ds = ds_temp.rename({'latitude':'lat','longitude':'lon'}).assign_coords(lat = lat_new, lon = lon_new)
+    else:
+        ds = ds_temp.rename({'latitude':'lat','longitude':'lon'}).assign_coords(lat = lat_new, lon = lon_new).sel(lat = lat_slice, lon = lon_slice)  
+  
+    # this data will be used as a sample to look at the days at which soil moisture values are needed for analyses
+    fname_sample = 'E_*_*_*.nc'
+    sample_dir = out_dir + 'E_week' + str(iW) + sub_dir + '/'
+    ds_sample = xr.open_mfdataset(sample_dir + fname_sample, chunks = {'lat':400, 'lon':400})
+
+    # Points in time at which sm data is required
+    daydiff = np.timedelta64(1, 'D')
+    initTime = ds_sample.time - daydiff
+    nWeekdiff = np.timedelta64((7*nWeek), 'D')
+    endTime = initTime + nWeekdiff
+    
+    ds_init = ds.sel(time = initTime)
+    ds_end = ds.sel(time = endTime)
+
+    # creating a temporary dataset that will be used to calculate the soil moisture differences using the initial and end sm values
+    # as I want the time label to correspond to the initial date, I'm reassigning the co-ordinate of the sm_end dataset
+    time_init = ds_init['time']
+    ds_end_fordiff = ds_sm_end.assign_coords(time = time_init)
+    ds_diff = (ds_end_fordiff['sm'] - ds_init['sm']).rename('sm_diff')
+    
+    full_dir_path = out_dir + 'sm_week' + str(nWeek) + sub_dir
+    print(full_dir_path)
+    if not os.path.exists(full_dir_path):
+        os.makedirs(full_dir_path)
+    
+    datasets_init = list(split_by_chunks(ds_init))
+    prefix = 'sm_init_week' + str(nWeek) + '_' + reg_prefix
+    paths_init = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_init]
+    xr.save_mfdataset(datasets=datasets_init, paths=paths_init)
+    
+    # *** this is probably an error, should be saving ds_diff here - to be corrected before using the function
+    # datasets_init = list(split_by_chunks(ds_init))
+    # prefix = 'sm_init_week' + str(nWeek) + '_' + reg_prefix
+    # paths_init = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_init]
+    # xr.save_mfdataset(datasets=datasets_init, paths=paths_init)
+
+
+#     for year, data in ds_init.groupby('time.year'):
+#         print('Writing init file:' + str(year))
+#         out_file = out_dir + 'sm_week' + str(nWeek) + sub_dir + '/sm_init_week' + str(nWeek) + '_AU_' + str(year) + '.nc'
+#         climtas.io.to_netcdf_throttled(data, f'{out_file}')
+
+#     for year, data in ds_end.groupby('time.year'):
+#         print('Writing end file:' + str(year))
+#         out_file = out_dir + 'sm_week' + str(nWeek) + sub_dir + '/sm_end_week' + str(nWeek) + '_AU_' + str(year) + '.nc'
+#         climtas.io.to_netcdf_throttled(data, f'{out_file}')
+
+#     for year, data in ds_diff.groupby('time.year'):
+#         print('Writing diff file:' + str(year))
+#         out_file = out_dir + 'sm_week' + str(nWeek) + sub_dir + '/sm_diff_week' + str(nWeek) + '_AU_' + str(year) + '.nc'
+#         climtas.io.to_netcdf_throttled(data, f'{out_file}')
+    return None
+
+
+def process_awra_sm_rolling(nWeek, out_dir, sub_dir = '',
+            awra_dir = '/g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/processed/values/day/', reg_prefix = 'AU', file_names = 'sm_[1-2]*.nc', lat_slice = None, lon_slice = None):
+    '''
+    Function to process weekly awra sm data. sub_dir should start with a '/' if specified.
+    '''
+    ds_temp = xr.open_mfdataset(awra_dir + file_names, chunks = {'lat':400,'lon':400})
+    
+    # converting the datatypes of SM to match P
+    lat_new = np.float32(ds_temp['latitude'])
+    lon_new = np.float32(ds_temp['longitude'])
+    if lat_slice is None:
+        ds = ds_temp.rename({'latitude':'lat','longitude':'lon'}).assign_coords(lat = lat_new, lon = lon_new)
+    else:
+        ds = ds_temp.rename({'latitude':'lat','longitude':'lon'}).assign_coords(lat = lat_new, lon = lon_new).sel(lat = lat_slice, lon = lon_slice)  
+
+    # Points in time at which sm data is required
+    initTime = ds.time[0:(-7*nWeek)]
+    nWeekdiff = np.timedelta64((7*nWeek), 'D')
+    endTime = initTime + nWeekdiff
+    
+    ds_init = ds.sel(time = initTime)
+    ds_end = ds.sel(time = endTime)
+
+    # creating a temporary dataset that will be used to calculate the soil moisture differences using the initial and end sm values
+    # as I want the time label to correspond to the initial date, I'm reassigning the co-ordinate of the sm_end dataset
+    time_init = ds_init['time']
+    ds_end_fordiff = ds_end.assign_coords(time = time_init)
+    ds_diff = ds_end_fordiff['sm'] - ds_init['sm']
+    ds_diff = ds_diff.rename('sm_diff')
+    
+    full_dir_path = out_dir + 'sm_week' + str(nWeek) + '/' + sub_dir + '/'
+    print(full_dir_path)
+    if not os.path.exists(full_dir_path):
+        os.makedirs(full_dir_path)
+    
+    # datasets_init = list(split_by_chunks(ds_init))
+    # prefix = 'sm_init_week' + str(nWeek) + '_' + reg_prefix
+    # paths_init = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_init]
+    # xr.save_mfdataset(datasets=datasets_init, paths=paths_init)
+    
+    # datasets_diff = list(split_by_chunks(ds_diff))
+    # prefix = 'sm_diff_week' + str(nWeek) + '_' + reg_prefix
+    # paths_diff = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_diff]
+    # xr.save_mfdataset(datasets=datasets_diff, paths=paths_diff)
+    
+    ds_diff.encoding['zlib'] = True
+    ds_diff.encoding['complevel'] = 1
+    
+    for year, data in ds_diff.groupby('time.year'):
+        print('Writing diff file:' + str(year))
+        out_file = out_dir + 'sm_week' + str(nWeek) + '/' + sub_dir + '/sm_diff_week' + str(nWeek) + '_' + reg_prefix + '_' + str(year) + '.nc'
+        data.to_netcdf(out_file)
+        # climtas.io.to_netcdf_throttled(data, f'{out_file}')
+    
+    # datasets_end = list(split_by_chunks(ds_end))
+    # prefix = 'sm_end_week' + str(nWeek) + '_' + reg_prefix
+    # paths_end = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_end]
+    # xr.save_mfdataset(datasets=datasets_end, paths=paths_end)  
+    return None
+
+def process_awra_sm_rolling_byDay(nDay, out_dir, awra_dir = '/g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/processed/values/day/', reg_prefix = 'AU', file_names = 'sm_[1-2]*.nc', lat_slice = None, lon_slice = None):
+    '''
+    Function to process weekly awra sm data. sub_dir should start with a '/' if specified.
+    '''
+    ds_temp = xr.open_mfdataset(awra_dir + file_names, chunks = {'lat':400,'lon':400})
+    
+    # converting the datatypes of SM to match P
+    lat_new = np.float32(ds_temp['latitude'])
+    lon_new = np.float32(ds_temp['longitude'])
+    if lat_slice is None:
+        ds = ds_temp.rename({'latitude':'lat','longitude':'lon'}).assign_coords(lat = lat_new, lon = lon_new)
+    else:
+        ds = ds_temp.rename({'latitude':'lat','longitude':'lon'}).assign_coords(lat = lat_new, lon = lon_new).sel(lat = lat_slice, lon = lon_slice)  
+
+    # Points in time at which sm data is required
+    initTime = ds.time[0:(-nDay)]
+    nDaydiff = np.timedelta64(nDay, 'D')
+    endTime = initTime + nDaydiff
+    
+    ds_init = ds.sel(time = initTime)
+    ds_end = ds.sel(time = endTime)
+
+    # creating a temporary dataset that will be used to calculate the soil moisture differences using the initial and end sm values
+    # as I want the time label to correspond to the initial date, I'm reassigning the co-ordinate of the sm_end dataset
+    time_init = ds_init['time']
+    ds_end_fordiff = ds_end.assign_coords(time = time_init)
+    ds_diff = ds_end_fordiff['sm'] - ds_init['sm']
+    ds_diff = ds_diff.rename('sm_diff')
+    
+    full_dir_path = out_dir + 'day' + str(nDay) + '/'
+    print(full_dir_path)
+    if not os.path.exists(full_dir_path):
+        os.makedirs(full_dir_path)
+    
+    # datasets_init = list(split_by_chunks(ds_init))
+    # prefix = 'sm_init_week' + str(nWeek) + '_' + reg_prefix
+    # paths_init = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_init]
+    # xr.save_mfdataset(datasets=datasets_init, paths=paths_init)
+    
+    # datasets_diff = list(split_by_chunks(ds_diff))
+    # prefix = 'sm_diff_week' + str(nWeek) + '_' + reg_prefix
+    # paths_diff = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_diff]
+    # xr.save_mfdataset(datasets=datasets_diff, paths=paths_diff)
+    
+    ds_diff.encoding['zlib'] = True
+    ds_diff.encoding['complevel'] = 1
+    
+    for year, data in ds_diff.groupby('time.year'):
+        print('Writing diff file:' + str(year))
+        out_file = out_dir + 'day' + str(nDay) + '/sm_diff_day' + str(nDay) + '_' + reg_prefix + '_' + str(year) + '.nc'
+        data.to_netcdf(out_file)
+        # climtas.io.to_netcdf_throttled(data, f'{out_file}')
+    
+    # datasets_end = list(split_by_chunks(ds_end))
+    # prefix = 'sm_end_week' + str(nWeek) + '_' + reg_prefix
+    # paths_end = [create_filepath(ds, prefix=prefix, root_path=full_dir_path) for ds in datasets_end]
+    # xr.save_mfdataset(datasets=datasets_end, paths=paths_end)  
     return None
 
 def create_week_sets(nWeek, allWeek_dict, final_end_day = "2020-05-31"):

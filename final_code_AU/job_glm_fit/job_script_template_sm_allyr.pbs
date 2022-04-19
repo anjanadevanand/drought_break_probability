@@ -1,0 +1,35 @@
+#!/bin/bash
+
+#PBS -P n81
+#PBS -q normalbw
+#PBS -l walltime=24:00:00
+#PBS -l mem=128GB
+#PBS -l ncpus=28
+#PBS -l storage=gdata/w97+gdata/hh5+gdata/fj8+gdata/zv2
+#PBS -m a
+#PBS -M anjana.devanand@unsw.edu.au
+#PBS -N mdl4_glm_6_0000
+#PBS -l wd
+
+#####PBS -j oe
+#####PBS -l wd
+
+# walltime for all land grids = 45:00:00
+# also removed jobfs PBS -l jobfs=50gb
+
+module use /g/data/hh5/public/modules
+module load conda/analysis3
+
+export iWeek=6
+#export start_yr=1900
+export glm_dir
+export sm_events_files
+export sm_deficit_files
+export end_yr=1900
+export start_lat
+export end_lat
+export start_lon
+export end_lon
+
+python ./fit_logiReg_gridded_varyThresh_model4_sm_drought_parallel.py
+# python ./fit_logiReg_gridded_varyThresh_model4_sm_drought.py
