@@ -1,6 +1,10 @@
 # drought_probability
 
+**[in progress]**
+
 Jupyter notebooks used to analyse probability of drought breaking events on Gadi
+
+This repository contains work in progress.
 
 ### Code workflow
 
