@@ -47,12 +47,15 @@ output:/g/data/w97/ad9701/p_prob_analysis/processed_data/awra/sm_week*/sm_diff_w
 
 ERA5Land:
 
-
-
 5. The GLM Climate model predictors
 
+The climate mode data downloaded from corresponding centres are saved as netcdf files in this directory: /g/data/w97/ad9701/p_prob_analysis/sst_data/
 
-6. The GLM Model
+6. The GLM Model (fit_logiReg_gridded_varyThresh_model4_sm_drought_parallel.py)
+
+Script used to fit the GLM model and estimate the historical probabilities as jobs on Gadi
+
+Bash script used to submit the jobs: sm_submit_jobs_glmfit_concatdaily.sh
 
 
 
