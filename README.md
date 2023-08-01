@@ -1,6 +1,4 @@
-# drought_probability
-
-**[in progress]**
+# drought_break_probability
 
 Jupyter notebooks used to analyse probability of drought breaking events on Gadi
 
@@ -16,8 +14,6 @@ AWRA:
 input: /g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/processed/values/day/sm_[1-2]\*.nc
 output: /g/data/w97/ad9701/p_prob_analysis/processed_data/awra/sm_refPeriod_perc/by_doy/sm_perc_\*day\*.nc
         /g/data/w97/ad9701/p_prob_analysis/processed_data/awra/sm_refPeriod_perc/sm_percentiles.nc
-ERA5-Land: 
-TO DO
 
 2. Identify grid level droughts (identify_gridlevel_drought_events.ipynb)
     
@@ -28,21 +24,11 @@ inputs: /g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/processed/values/day/sm_[1-2]\*.n
         /g/data/w97/ad9701/p_prob_analysis/processed_data/awra/sm_refPeriod_perc/sm_percentiles.nc
 output: /g/data/w97/ad9701/p_prob_analysis/processed_data/awra/sm_droughts/events\*.nc
 
-ERA5-Land:
-TO DO
 
 3. Calculate soil moisture deficit (drought_events_calc_smDeficit.ipynb)
 
 Calculates SM deficits based on the future day corresponding to the x-week timescale of interest at each day in drought that is identified in the previous step. These values are the threshold values of moisture accumulations that can end the ongoing drought. The SM deficits and P-E-Q thresholds may also be negative in certain conditions, especially in SON where the negative values indicate a thershold on the loss of existing soil moisture going into the warmer months.
 
-AWRA:
-inputs:
-
-output:
-
-
-ERA5-Land:
-TO DO
 
 4. Calculate soil moisture changes at x-week timescales (process_data_temp.ipynb)
 
@@ -50,8 +36,6 @@ The step calculates and saves the deltaSM data that will be used an input to the
 AWRA:
 inputs:/g/data/fj8/BoM/AWRA/DATA/SCHEDULED-V6/processed/values/day/sm_[1-2]\*.nc
 output:/g/data/w97/ad9701/p_prob_analysis/processed_data/awra/sm_week\*/sm_diff_week\*.nc
-
-ERA5Land:
 
 5. The GLM Climate model predictors
 
