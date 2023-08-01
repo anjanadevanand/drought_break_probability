@@ -1,8 +1,6 @@
 # drought_break_probability
 
-Jupyter notebooks used to analyse probability of drought breaking events on Gadi
-
-This repository contains work in progress.
+Jupyter notebooks used to analyse probability of drought breaking events on Gadi. The final codes are available in the dircetory final_code_AU.
 
 ### Code workflow
 
